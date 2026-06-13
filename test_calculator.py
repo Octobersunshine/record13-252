@@ -146,3 +146,179 @@ class TestConcentrationCalculator:
         assert result["contraction_corrected"] is True
         assert abs(result["contraction_rate"] - 2.2 * (1 + 0.00065 * 5)) < 0.001
         assert result["temperature"] == 25.0
+
+    def test_volume_to_mass_ethanol_95(self):
+        result = ConcentrationCalculator.volume_to_mass_concentration(
+            95.0, 0.789, 0.811
+        )
+        assert abs(result["mass_percent"] - 92.4) < 1.0
+        assert result["volume_percent"] == 95.0
+        assert result["solute_density"] == 0.789
+        assert result["solution_density"] == 0.811
+
+    def test_volume_to_mass_pure_solute(self):
+        result = ConcentrationCalculator.volume_to_mass_concentration(
+            100.0, 0.789, 0.789
+        )
+        assert abs(result["mass_percent"] - 100.0) < 0.01
+
+    def test_volume_to_mass_zero(self):
+        result = ConcentrationCalculator.volume_to_mass_concentration(
+            0.0, 0.789, 1.0
+        )
+        assert result["mass_percent"] == 0.0
+        assert result["mass_volume_g_per_L"] == 0.0
+
+    def test_volume_to_mass_invalid_values(self):
+        with pytest.raises(ValueError, match="体积百分比浓度应在0-100%范围内"):
+            ConcentrationCalculator.volume_to_mass_concentration(150, 0.789, 1.0)
+        with pytest.raises(ValueError, match="溶质密度必须大于0"):
+            ConcentrationCalculator.volume_to_mass_concentration(50, 0, 1.0)
+        with pytest.raises(ValueError, match="溶液密度必须大于0"):
+            ConcentrationCalculator.volume_to_mass_concentration(50, 0.789, -1)
+
+    def test_mass_to_volume_ethanol_95(self):
+        result = ConcentrationCalculator.mass_to_volume_concentration(
+            92.4, 0.789, 0.811
+        )
+        assert abs(result["volume_percent"] - 95.0) < 1.0
+        assert result["mass_percent"] == 92.4
+
+    def test_mass_to_volume_pure_solute(self):
+        result = ConcentrationCalculator.mass_to_volume_concentration(
+            100.0, 0.789, 0.789
+        )
+        assert abs(result["volume_percent"] - 100.0) < 0.01
+
+    def test_mass_to_volume_zero(self):
+        result = ConcentrationCalculator.mass_to_volume_concentration(
+            0.0, 0.789, 1.0
+        )
+        assert result["volume_percent"] == 0.0
+        assert result["mass_volume_g_per_L"] == 0.0
+
+    def test_mass_to_volume_invalid_values(self):
+        with pytest.raises(ValueError, match="质量百分比浓度应在0-100%范围内"):
+            ConcentrationCalculator.mass_to_volume_concentration(150, 0.789, 1.0)
+        with pytest.raises(ValueError, match="溶质密度必须大于0"):
+            ConcentrationCalculator.mass_to_volume_concentration(50, -1, 1.0)
+        with pytest.raises(ValueError, match="溶液密度必须大于0"):
+            ConcentrationCalculator.mass_to_volume_concentration(50, 0.789, 0)
+
+    def test_roundtrip_conversion(self):
+        v2m = ConcentrationCalculator.volume_to_mass_concentration(
+            70.0, 0.789, 0.886
+        )
+        m2v = ConcentrationCalculator.mass_to_volume_concentration(
+            v2m["mass_percent"], 0.789, 0.886
+        )
+        assert abs(m2v["volume_percent"] - 70.0) < 0.01
+
+    def test_general_conversion_gL_to_mgmL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(10, "g/L", "mg/mL")
+        assert result["output"]["value"] == 10.0
+        assert result["output"]["unit"] == "mg/mL"
+
+    def test_general_conversion_gL_to_ugmL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1, "g/L", "μg/mL")
+        assert result["output"]["value"] == 1000.0
+
+    def test_general_conversion_mmol_to_gL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            100, "mmol/L", "g/L", molar_mass=58.44
+        )
+        expected = 100 * 58.44 / 1000.0
+        assert abs(result["output"]["value"] - expected) < 0.001
+
+    def test_general_conversion_gL_to_mol(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            58.44, "g/L", "mol/L", molar_mass=58.44
+        )
+        assert abs(result["output"]["value"] - 1.0) < 0.001
+
+    def test_general_conversion_wv_to_gL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1, "w/v%", "g/L")
+        assert result["output"]["value"] == 10.0
+
+    def test_general_conversion_gL_to_wv(self):
+        result = ConcentrationCalculator.mass_volume_conversion(10, "g/L", "w/v%")
+        assert result["output"]["value"] == 1.0
+
+    def test_general_conversion_ww_to_gL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            10, "w/w%", "g/L", solution_density=1.05
+        )
+        expected = (10 / 100.0) * 1.05 * 1000.0
+        assert abs(result["output"]["value"] - expected) < 0.001
+
+    def test_general_conversion_gL_to_ww(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            105, "g/L", "w/w%", solution_density=1.05
+        )
+        assert abs(result["output"]["value"] - 10.0) < 0.001
+
+    def test_general_conversion_ngmL_to_gL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1000000, "ng/mL", "g/L")
+        assert abs(result["output"]["value"] - 1.0) < 0.0001
+
+    def test_general_conversion_requires_molar_mass(self):
+        with pytest.raises(ValueError, match="进行摩尔浓度转换时必须提供 molar_mass"):
+            ConcentrationCalculator.mass_volume_conversion(1, "g/L", "mol/L")
+
+    def test_general_conversion_requires_solution_density(self):
+        with pytest.raises(ValueError, match="进行质量百分比转换时必须提供 solution_density"):
+            ConcentrationCalculator.mass_volume_conversion(10, "w/w%", "g/L")
+
+    def test_general_conversion_invalid_unit(self):
+        with pytest.raises(ValueError, match="不支持的源单位"):
+            ConcentrationCalculator.mass_volume_conversion(10, "invalid", "g/L")
+        with pytest.raises(ValueError, match="不支持的目标单位"):
+            ConcentrationCalculator.mass_volume_conversion(10, "g/L", "invalid_unit")
+
+    def test_general_conversion_mgdL_blood_glucose(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            5.0, "mmol/L", "mg/dL", molar_mass=180.16
+        )
+        assert abs(result["output"]["value"] - 90.08) < 0.1
+
+        result2 = ConcentrationCalculator.mass_volume_conversion(
+            100, "mg/dL", "mmol/L", molar_mass=180.16
+        )
+        assert abs(result2["output"]["value"] - 5.55) < 0.1
+
+    def test_general_conversion_gdL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1, "g/dL", "g/L")
+        assert result["output"]["value"] == 10.0
+
+        result2 = ConcentrationCalculator.mass_volume_conversion(100, "g/L", "g/dL")
+        assert result2["output"]["value"] == 10.0
+
+    def test_general_conversion_ppm_ppb(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1000, "ppm", "g/L")
+        assert abs(result["output"]["value"] - 1.0) < 0.001
+
+        result2 = ConcentrationCalculator.mass_volume_conversion(1, "g/L", "ppm")
+        assert abs(result2["output"]["value"] - 1000.0) < 0.001
+
+        result3 = ConcentrationCalculator.mass_volume_conversion(1, "ppm", "ppb")
+        assert abs(result3["output"]["value"] - 1000.0) < 0.001
+
+    def test_general_conversion_nmol_pmol(self):
+        result = ConcentrationCalculator.mass_volume_conversion(
+            1000, "nmol/L", "μmol/L", molar_mass=100.0
+        )
+        assert abs(result["output"]["value"] - 1.0) < 0.001
+
+        result2 = ConcentrationCalculator.mass_volume_conversion(
+            1000, "pmol/L", "nmol/L", molar_mass=100.0
+        )
+        assert abs(result2["output"]["value"] - 1.0) < 0.001
+
+    def test_general_conversion_pgmL(self):
+        result = ConcentrationCalculator.mass_volume_conversion(1000000000, "pg/mL", "g/L")
+        assert abs(result["output"]["value"] - 1.0) < 0.001
+
+    def test_general_conversion_same_unit(self):
+        result = ConcentrationCalculator.mass_volume_conversion(42, "g/L", "g/L")
+        assert result["output"]["value"] == 42.0
+        assert result["conversion_factor"] == 1.0

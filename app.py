@@ -63,6 +63,104 @@ def calculate():
         return jsonify({"error": str(e)}), 400
 
 
+@app.route('/convert/v2m', methods=['POST'])
+def convert_volume_to_mass():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    required_fields = ['volume_percent', 'solute_density', 'solution_density']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"缺少必需参数: {field}"}), 400
+
+    try:
+        volume_percent = float(data['volume_percent'])
+        solute_density = float(data['solute_density'])
+        solution_density = float(data['solution_density'])
+    except (ValueError, TypeError):
+        return jsonify({"error": "所有参数必须为数值类型"}), 400
+
+    try:
+        result = ConcentrationCalculator.volume_to_mass_concentration(
+            volume_percent, solute_density, solution_density
+        )
+        return jsonify({"success": True, "result": result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/convert/m2v', methods=['POST'])
+def convert_mass_to_volume():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    required_fields = ['mass_percent', 'solute_density', 'solution_density']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"缺少必需参数: {field}"}), 400
+
+    try:
+        mass_percent = float(data['mass_percent'])
+        solute_density = float(data['solute_density'])
+        solution_density = float(data['solution_density'])
+    except (ValueError, TypeError):
+        return jsonify({"error": "所有参数必须为数值类型"}), 400
+
+    try:
+        result = ConcentrationCalculator.mass_to_volume_concentration(
+            mass_percent, solute_density, solution_density
+        )
+        return jsonify({"success": True, "result": result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@app.route('/convert/general', methods=['POST'])
+def convert_general():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "请求体不能为空"}), 400
+
+    required_fields = ['concentration_value', 'from_unit', 'to_unit']
+    for field in required_fields:
+        if field not in data:
+            return jsonify({"error": f"缺少必需参数: {field}"}), 400
+
+    try:
+        concentration_value = float(data['concentration_value'])
+    except (ValueError, TypeError):
+        return jsonify({"error": "concentration_value 必须为数值类型"}), 400
+
+    from_unit = data['from_unit']
+    to_unit = data['to_unit']
+
+    solution_density = None
+    if 'solution_density' in data and data['solution_density'] is not None:
+        try:
+            solution_density = float(data['solution_density'])
+        except (ValueError, TypeError):
+            return jsonify({"error": "solution_density 必须为数值类型"}), 400
+
+    molar_mass = None
+    if 'molar_mass' in data and data['molar_mass'] is not None:
+        try:
+            molar_mass = float(data['molar_mass'])
+        except (ValueError, TypeError):
+            return jsonify({"error": "molar_mass 必须为数值类型"}), 400
+
+    try:
+        result = ConcentrationCalculator.mass_volume_conversion(
+            concentration_value, from_unit, to_unit,
+            solution_density=solution_density,
+            molar_mass=molar_mass
+        )
+        return jsonify({"success": True, "result": result}), 200
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "healthy"}), 200

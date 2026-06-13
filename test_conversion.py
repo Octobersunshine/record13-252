@@ -1,0 +1,45 @@
+from calculator import ConcentrationCalculator
+
+print('=== 测试1: 95%乙醇(v/v)转质量浓度 ===')
+print('纯乙醇密度0.789 g/mL, 95%乙醇溶液密度约0.804 g/mL')
+result = ConcentrationCalculator.volume_to_mass_concentration(95, 0.789, 0.804)
+print(f'体积浓度: {result["volume_percent"]}% v/v')
+print(f'质量浓度: {result["mass_percent"]:.2f}% w/w')
+print(f'质量体积浓度: {result["mass_volume_g_per_L"]:.2f} g/L')
+print()
+
+print('=== 测试2: 75%乙醇(w/w)转体积浓度 ===')
+result2 = ConcentrationCalculator.mass_to_volume_concentration(75, 0.789, 0.872)
+print(f'质量浓度: {result2["mass_percent"]}% w/w')
+print(f'体积浓度: {result2["volume_percent"]:.2f}% v/v')
+print()
+
+print('=== 测试3: 通用转换 - NaCl 1 mol/L 转 g/L ===')
+result3 = ConcentrationCalculator.mass_volume_conversion(1.0, 'mol/L', 'g/L', molar_mass=58.44)
+print(f'{result3["input"]["value"]} {result3["input"]["unit"]} = {result3["output"]["value"]:.2f} {result3["output"]["unit"]}')
+print()
+
+print('=== 测试4: 通用转换 - 10% w/w 葡萄糖溶液转 g/L (密度1.04 g/mL) ===')
+result4 = ConcentrationCalculator.mass_volume_conversion(10.0, 'w/w%', 'g/L', solution_density=1.04)
+print(f'{result4["input"]["value"]} {result4["input"]["unit"]} = {result4["output"]["value"]:.2f} {result4["output"]["unit"]}')
+print()
+
+print('=== 测试5: 通用转换 - 0.9% w/v NaCl 转 mg/mL ===')
+result5 = ConcentrationCalculator.mass_volume_conversion(0.9, 'w/v%', 'mg/mL')
+print(f'{result5["input"]["value"]} {result5["input"]["unit"]} = {result5["output"]["value"]:.1f} {result5["output"]["unit"]}')
+print()
+
+print('=== 测试6: 质量体积往返转换验证 ===')
+v2m = ConcentrationCalculator.volume_to_mass_concentration(70, 0.789, 0.885)
+print(f'70% v/v -> {v2m["mass_percent"]:.2f}% w/w')
+m2v = ConcentrationCalculator.mass_to_volume_concentration(v2m["mass_percent"], 0.789, 0.885)
+print(f'{v2m["mass_percent"]:.2f}% w/w -> {m2v["volume_percent"]:.2f}% v/v')
+print(f'往返转换误差: {abs(m2v["volume_percent"] - 70):.6f}%')
+print()
+
+print('=== 测试7: 摩尔浓度转换 ===')
+print('葡萄糖(C6H12O6)摩尔质量 = 180.16 g/mol')
+r7 = ConcentrationCalculator.mass_volume_conversion(5.0, 'mmol/L', 'mg/dL', molar_mass=180.16)
+print(f'血糖 5.0 mmol/L = {r7["output"]["value"]:.1f} mg/dL')
+r7b = ConcentrationCalculator.mass_volume_conversion(90, 'mg/dL', 'mmol/L', molar_mass=180.16)
+print(f'血糖 90 mg/dL = {r7b["output"]["value"]:.2f} mmol/L')
